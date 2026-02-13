@@ -1,0 +1,309 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "theme": "system",
+  "autoupdate": true,
+  "enabled_providers": ["anthropic", "google", "openai"],
+  "disabled_providers": ["opencode", "gitlab", "gemini"],
+  "share": "disabled",
+
+  // Keep long sessions usable during large refactors.
+  "compaction": { "auto": true, "prune": true },
+
+  // File watcher ignores: reduces noise so the agent focuses on real code changes.
+  "watcher": {
+    "ignore": [
+      ".git/**",
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "target/**",
+      "vendor/**",
+      ".venv/**",
+      "__pycache__/**",
+      ".pytest_cache/**",
+      ".mypy_cache/**",
+      ".ruff_cache/**",
+      ".gradle/**",
+      ".idea/**",
+      ".vscode/**",
+    ],
+  },
+
+  "provider": {
+    "openai": {
+      "options": {
+        "setCacheKey": true,
+      },
+      "models": {
+        "gpt-5.3-codex": {
+          "options": {
+            "reasoningEffort": "high",
+            "temperature": 0.2,
+            "top_p": 1,
+            "max_completion_tokens": 8192,
+          },
+        },
+      },
+    },
+
+    "anthropic": {
+      "options": {
+        "setCacheKey": true,
+      },
+      "models": {
+        "claude-opus-4-6": {
+          "options": {
+            "thinking": {
+              "type": "enabled",
+              "budgetTokens": 31999,
+              "maxOutputTokens": 32000,
+            },
+          },
+        },
+        "claude-sonnet-4-5": {
+          "options": {
+            "thinking": {
+              "type": "enabled",
+              "budgetTokens": 31999,
+              "maxOutputTokens": 32000,
+            },
+          },
+        },
+      },
+    },
+
+    "google": {
+      "options": {
+        "setCacheKey": true,
+      },
+      "models": {
+        "gemini-3-pro-preview": {
+          "options": {
+            "generationConfig": {
+              "temperature": 0.7,
+              "topP": 0.95,
+              "topK": 40,
+              "maxOutputTokens": 8192,
+            },
+          },
+        },
+      },
+    },
+  },
+
+  // --- Models ---
+  // Default “daily driver” for coding-agent workflows.
+  "model": "anthropic/claude-opus-4-6",
+  // "model": "openai/gpt-5.3-codex",
+  // "model": "anthropic/claude-sonnet-4-5",
+
+  // Used for lightweight tasks (e.g., titles).
+  "small_model": "anthropic/claude-sonnet-4-5",
+  // "small_model": "google/gemini-3-pro-preview",
+
+  "mode": {
+    "plan": {
+      "model": "anthropic/claude-opus-4-6",
+    },
+    "build": {
+      "model": "anthropic/claude-opus-4-6",
+    },
+  },
+
+  // --- Agents (easy A/B/C testing) ---
+  // Switch agents quickly (Tab / Shift+Tab by default).
+  "default_agent": "plan",
+  "agent": {
+    "codex": {
+      "description": "Go/Python/Java coding agent (gpt-5.3-codex). Best for implementation + tool-heavy workflows.",
+      "model": "openai/gpt-5.3-codex",
+      "prompt": "You are a senior software engineer working primarily in Go, Python, and Java.\n\nWorking style:\n- Navigate like a human: use repo search (rg/grep), and prefer LSP-style jumps (defs/refs) when available.\n- Before editing, locate the minimal set of files/types involved and summarize a short plan.\n- Implement in small, reviewable diffs; preserve existing architecture and conventions.\n- Run the smallest relevant tests/linters; report commands + results.\n- Keep output concise: focus on what changed, why, and how to validate.",
+    },
+
+    "opus": {
+      "description": "Architecture + tricky refactors (Claude Opus 4.5). Great for deep reasoning on design and invariants.",
+      "model": "anthropic/claude-opus-4-6",
+      "prompt": "You are a principal engineer. Prioritize correctness, invariants, and clean design in Go/Python/Java.\n\nWorking style:\n- First build a mental model (key types, flows, and boundaries).\n- Propose a robust plan, then implement with minimal churn.\n- Prefer clear interfaces, strong tests, and careful edge-case handling.",
+    },
+
+    "gemini": {
+      "description": "Large-repo navigation + long-context reasoning (Gemini 3 Pro Preview).",
+      "model": "google/gemini-3-pro-preview",
+      "prompt": "You are a senior engineer optimized for long-context repo understanding in Go/Python/Java.\n\nWorking style:\n- Be systematic: search first, confirm call paths, then change code.\n- Prefer incremental edits with good tests and clear validation steps.",
+    },
+  },
+
+  // --- MCP Servers ---
+  "mcp": {
+    "atlassian": {
+      "type": "remote",
+      "url": "https://mcp.atlassian.com/v1/sse",
+    },
+    // "datadog": {
+    //   "type": "remote",
+    //   "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp?toolsets=core,software-delivery"
+    // },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--isolated=true"],
+    },
+  },
+
+  // --- Permissions ---
+  // OpenCode permissions support allow/ask/deny, and pattern matching where the last match wins.
+  "permission": {
+    "*": "ask",
+
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "todoread": "allow",
+    "todowrite": "allow",
+    "task": "allow",
+    "skill": "allow",
+    "websearch": "allow",
+
+    // Reads: allow by default, but keep sane secret-denies.
+    "read": {
+      "*": "allow",
+
+      // common secrets
+      ".env": "deny",
+      ".env.*": "deny",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      ".npmrc": "deny",
+      "**/.npmrc": "deny",
+      ".pypirc": "deny",
+      "**/.pypirc": "deny",
+      ".netrc": "deny",
+      "**/.netrc": "deny",
+      "id_rsa": "deny",
+      "**/id_rsa": "deny",
+      "id_ed25519": "deny",
+      "**/id_ed25519": "deny",
+    },
+
+    // Edits: allow inside repo, allow /tmp (and friends),
+    // but prompt for absolute paths and parent-dir escapes.
+    // (Write tool is governed by edit permission.)
+    "edit": {
+      "*": "allow",
+
+      // catch relative edits that escape the repo
+      "../*": "ask",
+      "*../*": "ask",
+
+      // absolute paths prompt by default
+      "/*": "ask",
+
+      // explicit allowances
+      "/tmp/*": "allow",
+      "/private/tmp/*": "allow",
+      "/var/tmp/*": "allow",
+      "~/dd/*": "allow",
+      "~/go/*": "allow",
+      "~/notes/*": "allow",
+      "~/Downloads/*": "allow",
+    },
+
+    // Bash: default to "ask" for unknown commands, then explicitly allow categories.
+    // Note: sed and awk are allowed for text processing in pipelines. They can modify
+    // files in-place (sed -i, etc.), but prompting on every invocation would be too
+    // disruptive for common grep/sed/awk pipelines. Accept the risk for productivity.
+    "bash": {
+      "*": "ask",
+
+      // text processing and shell utilities
+      "sort *": "allow",
+      "echo *": "allow",
+      "awk *": "allow",
+      "bun *": "allow",
+      "bzl *": "allow",
+      "jq *": "allow",
+      "yq *": "allow",
+      "rapid *": "allow",
+      "xargs *": "allow",
+      "rapid-bin *": "allow",
+      "ddtool *": "allow",
+      "ddr *": "allow",
+      "tar *": "allow",
+      "tee *": "allow",
+      "test *": "allow",
+      "gh pr view *": "allow",
+      "gh pr list *": "allow",
+      "gh pr diff *": "allow",
+      "gh api *": "allow",
+      "paste *": "allow",
+      "uniq *": "allow",
+      "if *": "allow",
+      "for *": "allow",
+      "while *": "allow",
+
+      // read-only / inspection
+      "ll *": "allow",
+      "l *": "allow",
+      "ls *": "allow",
+      "pwd": "allow",
+      "whoami": "allow",
+      "uname *": "allow",
+      "date *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "sed *": "allow",
+      "grep *": "allow",
+      "rg *": "allow",
+      "find *": "allow",
+      "tree *": "allow",
+      "stat *": "allow",
+      "wc *": "allow",
+      "mkdir *": "allow",
+      "tr *": "allow",
+
+      // git read-only
+      "git status *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "git show *": "allow",
+      "git blame *": "allow",
+      "git branch *": "allow",
+      "git rev-parse *": "allow",
+      "git remote *": "allow",
+      "git symbolic-ref *": "allow",
+      "git merge-base *": "allow",
+
+      // git write operations
+      "git commit *": "allow",
+      "git add *": "allow",
+      "gh auth *": "allow",
+      "gh pr create *": "allow",
+
+      // OPTIONAL convenience: common test commands.
+      // Comment these out if you want prompts before running code.
+      "go *": "allow",
+      "python -m pytest *": "allow",
+      "pytest *": "allow",
+      "python -m unittest *": "allow",
+      "mvn test *": "allow",
+      "./mvnw test *": "allow",
+      "gradle test *": "allow",
+      "./gradlew test *": "allow",
+    },
+
+    "webfetch": "allow",
+
+    // OpenCode registers MCP tools with a "<serverName>_" prefix.
+
+    // Atlassian MCP:
+    "atlassian_*": "ask",
+    "atlassian_get*": "allow",
+    "atlassian_search": "allow",
+    "atlassian_search*": "allow",
+    "atlassian_list*": "allow",
+    "atlassian_fetch": "allow",
+    "atlassian_download*": "allow",
+    "atlassian_atlassianUserInfo": "allow",
+  },
+}

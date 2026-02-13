@@ -1,0 +1,255 @@
+---
+name: tour
+description: >
+  Use when user says "code tour", "give me a tour", "walk me through", "show me how X works",
+  "explain the codebase", "guided tour", "teach me about", or asks to understand a service's
+  architecture or code structure. Supports interactive (step-by-step) and written (full document) modes.
+argument-hint: "[topic, service, or code area to tour]"
+user-invocable: true
+allowed-tools: Bash(git:*), Bash(gh:*), Bash(python3:*), Read, Grep, Glob, Task, Write, mcp__atlassian__searchConfluenceUsingCql, mcp__atlassian__getConfluencePage
+---
+
+# Code Tour
+
+Announce: "I'm using the tour skill to give a guided walkthrough of the codebase."
+
+Walk through code to explain architecture, flows, or structure. Two modes: **interactive** (step-by-step with user) or **written** (complete document).
+
+## Arguments
+
+`$ARGUMENTS` - The topic, service, or code area to tour (e.g., "apm-services-api", "authentication flow", "src/handlers")
+
+## Mode Selection
+
+Pick mode based on user intent:
+
+- **Interactive** (default): User said "tour", "walk me through", "show me". Step-by-step with pauses.
+- **Written**: User said "write a tour", "document the architecture", "write up how X works", or added `--written`. Produces a complete markdown document.
+
+If unclear, ask the user which mode they prefer.
+
+## Step 1: Discover Code Context
+
+1. Use Glob/Grep to locate relevant source files for `$ARGUMENTS`
+2. If Atlassian MCP tools are available, query for internal documentation and Confluence pages
+3. Search the current repo and common code directories for relevant source files
+
+## Step 2: Build Tour Plan
+
+Identify stops in logical order:
+
+1. **Overview**: High-level context from documentation
+2. **Entry point**: main() or equivalent starting point
+3. **Dependencies**: Initialization and dependency injection
+4. **Core logic**: Key handlers, routes, or business logic
+5. **Integration points**: Connections to other services
+
+Adapt stops to the topic — not every tour needs all five.
+
+## Step 3: Deliver Tour
+
+### Interactive Mode
+
+Show code inline and explain it stop-by-stop, waiting for the user between each.
+
+#### How to Present Code
+
+Use the Read tool to load relevant file sections. Present code as fenced blocks with file path and line numbers:
+
+```
+`path/to/file.go:42-68`
+⟶ [code snippet]
+```
+
+Keep snippets focused — show only the lines relevant to the current stop (typically 10-30 lines). Use sub-agents (Task with subagent_type=Explore) to research code you need context on before explaining.
+
+#### Pacing Rules
+
+**CRITICAL**: You MUST wait for user confirmation between stops.
+
+1. After explaining a stop, ALWAYS ask before moving on:
+   - "Ready to see [next concept]?"
+   - "Any questions before we move on?"
+   - "Let me know when you're ready to continue"
+
+2. NEVER blast through multiple stops without user confirmation between each.
+
+3. If the user asks a question about the current code, answer it fully before offering to continue.
+
+#### Example Flow
+
+```
+[You] "Let me give you a tour of {service}. First, let me find the relevant code..."
+[Read files, query docs]
+
+[You] "This service does X. Here's the entry point:"
+[Show code snippet from main()]
+[Explain what it does]
+"Ready to see how dependencies are wired up?"
+
+[Wait for user: "yes"]
+
+[Show next code snippet]
+[Explain, then ask for confirmation again]
+
+[User asks "what does this function do?"]
+[Read the function, research with sub-agent, explain]
+```
+
+### Written Mode
+
+Produce a complete tour as a single markdown document. No pausing — research everything, then write.
+
+#### Process
+
+1. Complete Steps 1-2 above
+2. Use sub-agents (Task with subagent_type=Explore) in parallel to research each stop
+3. Write the full tour document
+
+#### Output Format
+
+Write the tour to a file (default: `/tmp/tour-{topic}.md`) or print inline if short.
+
+```markdown
+# Code Tour: {Topic}
+
+{1-2 sentence overview of what this component/service does}
+
+---
+
+## Stop 1: {Title}
+
+📍 `path/to/file.go:42-68`
+
+{Explanation of what this code does and why it matters}
+
+\`\`\`go
+// relevant code excerpt
+\`\`\`
+
+---
+
+## Stop 2: {Title}
+
+📍 `path/to/file.go:120-145`
+
+{Explanation}
+
+\`\`\`go
+// relevant code excerpt
+\`\`\`
+
+---
+
+## Data Flow
+
+\`\`\`
+component A → component B → component C
+\`\`\`
+```
+
+#### Guidelines
+
+- Each stop covers one logical area (a type, a handler, an integration point)
+- Include inline code snippets showing the key lines
+- End with a data flow summary showing how pieces connect
+- Reference actual file paths and line numbers so the reader can navigate
+
+### PR Comment Mode
+
+When the user asks to post a code tour as a comment on a PR (e.g., "post this tour as a PR comment", "write a code tour comment on PR #123"), generate a single PR comment containing the full tour.
+
+#### Gathering context
+
+1. Fetch the PR metadata and diff:
+   ```bash
+   gh pr view {PR_NUMBER} --json title,body,files,commits
+   gh pr diff {PR_NUMBER}
+   ```
+2. Read the changed files to understand the code in full context (not just the diff hunks).
+
+#### Building diff links
+
+GitHub diff links use SHA-256 hashes of file paths as anchors. Compute them with:
+
+```bash
+python3 -c "
+import hashlib
+files = ['path/to/file.go', ...]
+for f in files:
+    h = hashlib.sha256(f.encode()).hexdigest()
+    print(f'{f} -> {h}')
+"
+```
+
+Link format: `https://github.com/{owner}/{repo}/pull/{number}/files#diff-{sha256_hash}R{line_number}`
+- `R{line}` for right side (new code), `L{line}` for left side (old code)
+- For line ranges: `R{start}-R{end}`
+
+**IMPORTANT**: Use HTML `<a>` tags with `target="_blank"` so links open in a new tab:
+```html
+<a href="https://github.com/.../pull/123/files#diff-{hash}R{line}" target="_blank"><code>file.go</code> — description</a>
+```
+
+#### Comment structure
+
+Use collapsible `<details>` sections for each "stop" on the tour:
+
+```markdown
+## Code Tour
+
+A guided walkthrough of the changes in this PR. Each stop covers one logical area — expand to read.
+
+---
+
+<details>
+<summary><strong>Stop 1: Title</strong> — brief subtitle</summary>
+
+📍 <a href="https://github.com/.../pull/123/files#diff-{hash}R{line}-R{line}" target="_blank"><code>file.go</code> — description</a>
+
+Explanation with inline code snippets:
+
+\`\`\`go
+// relevant code excerpt
+\`\`\`
+
+</details>
+
+<details>
+<summary><strong>Stop 2: Title</strong> — brief subtitle</summary>
+...
+</details>
+
+---
+
+### Data flow summary
+
+\`\`\`
+component A → component B → component C
+\`\`\`
+```
+
+#### Guidelines
+
+- Each stop should cover one logical area of the change (a new type, a caller, an integration point, etc.)
+- Include inline code snippets showing the key lines — don't make the reader expand every diff
+- Link to specific diff regions so readers can click through to full context
+- End with a data flow summary showing how the pieces connect
+- Write the comment to a temp file and post with `gh pr comment {number} --body-file /tmp/file.md`
+
+#### When to use this mode
+
+- User explicitly asks to post the tour as a PR comment
+- User provides a PR URL and asks for a written tour
+- After an interactive tour, user asks to capture it as a PR comment
+
+## Error Handling
+
+| Error | Action |
+|-------|--------|
+| No topic provided | Ask the user what they want a tour of |
+| No relevant files found | Report that no matching code was found, suggest alternative search terms |
+| Atlassian MCP not available | Skip Confluence search, proceed with local codebase only |
+| `gh` not available (PR comment mode) | Inform user that `gh` CLI is required for posting PR comments. Stop. |
+| PR not found (PR comment mode) | Report error. List recent PRs with `gh pr list --limit 5`. |
+| File too large to display | Show key sections only, link to full file path for reference |

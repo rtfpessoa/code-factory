@@ -1,0 +1,9 @@
+{
+  "name": "productivity",
+  "version": "0.1.0",
+  "description": "Productivity skills: feature development lifecycle (/do), execution planning (/execplan), documentation management (/doc), workspace setup, and repo self-improvement",
+  "author": {
+    "name": "Rodrigo Fernandes",
+    "email": "rodrigo.fernandes@datadoghq.com"
+  }
+}

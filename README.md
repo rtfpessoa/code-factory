@@ -1,4 +1,107 @@
-# rtfpessoa's coding agents configs
+# code-factory
 
-TODO
+rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenCode](https://opencode.ai) marketplace -- a collection of plugins, skills, and agent definitions that extend AI coding assistants with structured workflows for execution planning, git operations, and code understanding.
 
+## Quick Reference
+
+| Command | Plugin | Purpose |
+|---------|--------|---------|
+| `/do` | productivity | Orchestrate feature development with lifecycle tracking |
+| `/execplan` | productivity | Create, review, execute, or resume execution plans |
+| `/doc` | productivity | Create, update, improve, or audit Markdown docs |
+| `/workspace` | productivity | Set up Claude Code configuration and plugins |
+| `/improve-skill` | productivity | Audit and improve skills in this marketplace |
+| `/commit` | git | Create a structured git commit |
+| `/atcommit` | git | Validate and organize atomic commits |
+| `/pr` | git | Create a GitHub pull request |
+| `/branch` | git | Create a well-named feature branch |
+| `/worktree` | git | Create an isolated git worktree |
+| `/review` | code | Review a pull request with structured feedback |
+| `/tour` | code | Guided code walkthrough (interactive or written) |
+
+## Plugins
+
+### productivity
+
+Productivity skills -- feature development lifecycle, documentation management, execution planning, workspace setup, and repo self-improvement.
+
+**Skills:**
+
+- `/do` -- Orchestrate feature development with full lifecycle management. Multi-phase workflow (RESEARCH -> PLAN -> EXECUTE -> VALIDATE -> DONE) with resumable state, specialized subagents, and atomic commits. Supports interactive and autonomous modes.
+- `/doc` -- Manage Markdown documentation lifecycle: create, update, improve, maintain, and audit. Supports Confluence sync via ddoc. Includes templates for runbooks, guides, references, tutorials, and ADRs.
+- `/execplan` -- Create, execute, review, or resume an ExecPlan. Supports four modes: author (write a new plan), review (interactive walkthrough with feedback), execute (run a plan from the start), and resume (continue an in-progress plan).
+- `/workspace` -- Set up and manage Claude Code configuration. Bootstraps the code-factory plugin marketplace, symlinks configuration files, and manages MCP server settings.
+- `/improve-skill` -- Reflect on recent work and improve the skills, tools, and documentation in this plugin marketplace. Audits existing skills for clarity, conciseness, and completeness; identifies missing tools; and applies improvements directly.
+
+**Agents:**
+
+- `execplan` -- A specialized agent persona for authoring and executing ExecPlans. Resolves ambiguities autonomously, commits frequently, and breaks work into independently verifiable milestones.
+- `do-orchestrator` -- Drives the feature development state machine through phases. Single writer of FEATURE.md state files.
+- `do-explorer` -- Explores codebase for architecture patterns, conventions, and integration points.
+- `do-researcher` -- Researches domain context on Confluence and external sources.
+- `do-planner` -- Authors execution plans with milestones, tasks, and validation strategy.
+- `do-reviewer` -- Reviews and critiques plans for completeness and safety.
+- `do-implementer` -- Executes implementation steps with atomic commits.
+- `do-validator` -- Validates completeness against acceptance criteria.
+
+### git
+
+Git workflow skills -- structured commits, PR creation, and branch management.
+
+**Skills:**
+
+- `/commit` -- Create a well-structured git commit with optional Documentation, Motivation, and Summary sections. Analyzes staged changes, detects Jira ticket IDs from branch names, and builds a formatted commit message.
+- `/pr` -- Create a GitHub pull request from the current branch. Collects commits since divergence from the base branch, detects ticket IDs and URLs from commit messages, and builds a structured PR description.
+- `/branch` -- Create a well-named feature branch from a ticket ID or description. Generates branches with the naming convention `<user>/<slug>-<TICKET-ID>` from the default branch (prefix derived from `git config user.name`).
+- `/worktree` -- Create an isolated git worktree for feature development. Sets up a detached worktree from the default branch in a sibling directory, ready for `/branch` to create a feature branch.
+- `/atcommit` -- Validate and organize changes into self-contained atomic commits. Builds a dependency graph across changed files, detects violations (missing deps, mixed concerns, forward references), and proposes commit groups in the correct order.
+
+### code
+
+Code understanding skills -- PR review with structured feedback and guided code tours.
+
+**Skills:**
+
+- `/review` -- Review a pull request with structured feedback across five categories (Correctness, Security, Design, Testing, Style) with severity levels (critical, suggestion, nit). Presents findings to the user without posting automatically.
+- `/tour` -- Guided code walkthroughs to explain architecture, flows, or structure. Supports three modes: interactive (step-by-step with pauses), written (complete markdown document), and PR comment (collapsible sections posted to a GitHub PR).
+
+## Installation
+
+1. Clone the repository:
+
+       git clone https://github.com/rtfpessoa/code-factory.git
+       cd code-factory
+
+2. Run the init script to symlink configuration files:
+
+       ./init.sh
+
+   This creates the following symlinks:
+
+   | Source | Destination |
+   |--------|-------------|
+   | `mcp.json` | `~/.mcp.json` |
+   | `settings.json` | `~/.claude/settings.json` |
+   | `opencode.jsonc` | `~/.config/opencode/opencode.jsonc` |
+
+   If a destination already exists as a regular file (not a symlink), the script warns and skips it. If it exists as a symlink, it is replaced.
+
+3. The marketplace is registered in `settings.json` under `extraKnownMarketplaces` as `code-factory` pointing to `rtfpessoa/code-factory` on GitHub. The plugins `productivity@code-factory`, `git@code-factory`, and `code@code-factory` are enabled by default.
+
+## Configuration Files
+
+### settings.json (Claude Code)
+
+Global settings for Claude Code. Defines tool permissions (which bash commands and tools are auto-allowed), the default model (`opus` -- a Claude Code shorthand for the current Opus model), enabled MCP servers, marketplace references, and enabled plugins.
+
+### opencode.jsonc (OpenCode)
+
+Configuration for the OpenCode CLI. Defines model providers (Anthropic, OpenAI, Google), agent profiles for A/B testing different models, MCP server connections, and a granular permission system. Uses JSONC (JSON with comments).
+
+### mcp.json (MCP Servers)
+
+Declares three MCP (Model Context Protocol) servers:
+
+- **atlassian** -- Connects to Atlassian's hosted MCP service for Jira and Confluence integration.
+- **datadog** -- Connects to Datadog's MCP service for observability tooling (disabled by default in local settings).
+- **chrome-devtools** -- Launches a local Chrome DevTools MCP server via npx for browser debugging.
