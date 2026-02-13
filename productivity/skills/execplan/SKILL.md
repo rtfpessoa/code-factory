@@ -264,9 +264,24 @@ This creates a loop: the user can keep giving feedback until they select one of 
 
 ### Execute Mode
 
-#### Step 1: Set Up Isolated Workspace
+#### Step 1: Set Up Workspace
 
-Before executing any plan, always create an isolated worktree and feature branch. Extract a short description from the plan filename or task description for naming.
+Extract a short description from the plan filename or task description for naming.
+
+Ask the user how they want to work:
+
+```
+AskUserQuestion(
+  header: "Workspace",
+  question: "Where should this plan be executed?",
+  options: [
+    "Worktree (Recommended)" -- Create an isolated git worktree so main workspace stays clean,
+    "Current directory" -- Work directly in the current repo checkout
+  ]
+)
+```
+
+**If the user chose "Worktree":**
 
 1. Invoke the `/worktree` skill to create an isolated workspace:
 
@@ -293,6 +308,18 @@ Skill(skill="branch", args="<short description from plan>")
 ```
 cp <original plan_path> <WORKTREE_PATH>/<plan_path>
 ```
+
+**If the user chose "Current directory":**
+
+1. Store the current working directory as `WORKTREE_PATH`.
+
+2. Invoke the `/branch` skill to create a feature branch:
+
+```
+Skill(skill="branch", args="<short description from plan>")
+```
+
+No plan file copy is needed — the plan is already accessible.
 
 #### Step 2: Dispatch Execution Agent
 
@@ -345,7 +372,7 @@ After the agent returns, read the updated plan and report:
 - Progress items completed vs remaining
 - Any surprises or decisions logged
 - Whether the plan is now complete
-- The worktree path and branch name
+- The workspace path and branch name
 
 If the plan is complete (all Progress items are checked), create a pull request:
 
@@ -357,14 +384,15 @@ Report the PR URL to the user.
 
 ### Resume Mode
 
-#### Step 1: Locate the Worktree
+#### Step 1: Locate the Workspace
 
-The plan was initially executed in an isolated worktree. Identify the correct worktree:
+Determine whether the plan was executed in a worktree or the current directory:
 
 1. Run `git worktree list` to find existing worktrees.
 2. Match the worktree by looking for one whose directory name corresponds to the plan slug.
 3. If found, store the path as `WORKTREE_PATH` and `cd` into it.
-4. If not found (e.g., the worktree was removed), create a new one using the same flow as Execute Mode Step 1: invoke `/worktree`, `cd` into it, then invoke `/branch`. If the branch already exists on the remote, check it out instead of creating a new one.
+4. If not found, check the current directory for the plan's feature branch (run `git branch --list` and match by plan slug). If the branch exists locally, check it out and store the current directory as `WORKTREE_PATH`.
+5. If neither is found (e.g., worktree was removed and branch is not local), ask the user how to proceed using the same workspace question as Execute Mode Step 1. If the branch already exists on the remote, check it out instead of creating a new one.
 
 #### Step 2: Dispatch Resume Agent
 
