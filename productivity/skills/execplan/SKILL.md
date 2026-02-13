@@ -275,13 +275,14 @@ AskUserQuestion(
   header: "Workspace",
   question: "Where should this plan be executed?",
   options: [
-    "Worktree (Recommended)" -- Create an isolated git worktree so main workspace stays clean,
-    "Current directory" -- Work directly in the current repo checkout
+    "Worktree + new branch (Recommended)" -- Create an isolated git worktree and feature branch so main workspace stays clean,
+    "New branch in current directory" -- Create a feature branch here without a worktree,
+    "Current branch" -- Work on the already checked-out branch with no worktree or branch creation
   ]
 )
 ```
 
-**If the user chose "Worktree":**
+**If the user chose "Worktree + new branch":**
 
 1. Invoke the `/worktree` skill to create an isolated workspace:
 
@@ -309,7 +310,7 @@ Skill(skill="branch", args="<short description from plan>")
 cp <original plan_path> <WORKTREE_PATH>/<plan_path>
 ```
 
-**If the user chose "Current directory":**
+**If the user chose "New branch in current directory":**
 
 1. Store the current working directory as `WORKTREE_PATH`.
 
@@ -320,6 +321,12 @@ Skill(skill="branch", args="<short description from plan>")
 ```
 
 No plan file copy is needed — the plan is already accessible.
+
+**If the user chose "Current branch":**
+
+1. Store the current working directory as `WORKTREE_PATH`.
+
+No branch creation or plan file copy needed — work proceeds on the current branch.
 
 #### Step 2: Dispatch Execution Agent
 
@@ -353,7 +360,7 @@ Commit frequently. Resolve ambiguities autonomously and document decisions in th
 </plan>
 
 <instructions>
-- You are working in an isolated worktree at <worktree_path> on a dedicated feature branch. All work happens here.
+- You are working at <worktree_path> on a dedicated branch. All work happens here.
 - Update the Progress section in <plan_path> as you complete each step
 - Record discoveries in Surprises & Discoveries
 - Record decisions in Decision Log
@@ -386,13 +393,14 @@ Report the PR URL to the user.
 
 #### Step 1: Locate the Workspace
 
-Determine whether the plan was executed in a worktree or the current directory:
+Determine where the plan was executed:
 
 1. Run `git worktree list` to find existing worktrees.
 2. Match the worktree by looking for one whose directory name corresponds to the plan slug.
 3. If found, store the path as `WORKTREE_PATH` and `cd` into it.
-4. If not found, check the current directory for the plan's feature branch (run `git branch --list` and match by plan slug). If the branch exists locally, check it out and store the current directory as `WORKTREE_PATH`.
-5. If neither is found (e.g., worktree was removed and branch is not local), ask the user how to proceed using the same workspace question as Execute Mode Step 1. If the branch already exists on the remote, check it out instead of creating a new one.
+4. If not found, check for the plan's feature branch locally (run `git branch --list` and match by plan slug). If the branch exists, check it out and store the current directory as `WORKTREE_PATH`.
+5. If no matching worktree or branch is found, the plan may have been executed on the current branch. Check whether the current branch has commits related to the plan (e.g., `git log --oneline -10` and match against the plan's task description). If so, store the current directory as `WORKTREE_PATH` and continue on the current branch.
+6. If none of the above match, ask the user how to proceed using the same workspace question as Execute Mode Step 1. If the branch already exists on the remote, check it out instead of creating a new one.
 
 #### Step 2: Dispatch Resume Agent
 
@@ -435,7 +443,7 @@ Next to do: <next incomplete step text>
 </resume_context>
 
 <instructions>
-- You are working in an isolated worktree at <worktree_path> on a dedicated feature branch. All work happens here.
+- You are working at <worktree_path> on a dedicated branch. All work happens here.
 - Read the full plan including Surprises & Discoveries and Decision Log for prior context
 - Continue from the first incomplete Progress item
 - Do not re-execute completed steps
