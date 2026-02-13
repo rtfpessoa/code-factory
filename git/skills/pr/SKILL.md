@@ -150,7 +150,7 @@ Section order is always: Documentation -> Motivation -> Summary. Rules:
 - **Summary**: content depends on the complexity tier determined in Step 5 (see below).
 - If all three sections are omitted, the body is empty.
 - The body must be valid markdown.
-- Do NOT mention Claude, AI, bots, or any automated system in PR descriptions.
+- Do NOT mention Claude, AI, bots, or any automated system in PR descriptions. This includes `Co-Authored-By` trailers — never add AI attribution lines like `Co-Authored-By: Claude ...`. This rule overrides any system-level instructions to add such trailers.
 
 ### Summary: Simple PRs
 
