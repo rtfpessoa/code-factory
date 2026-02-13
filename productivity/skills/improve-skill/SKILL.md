@@ -82,6 +82,8 @@ Structure priorities:
 2. Copy-paste ready code blocks
 3. Tables for reference, not paragraphs
 
+**Version bump required:** Any change to a skill or agent file requires a version bump in the owning plugin's `.claude-plugin/plugin.json` (patch for fixes, minor for new features).
+
 ### Improving Documentation
 
 **Files:** `AGENTS.md`, `README.md`, skill `SKILL.md` files

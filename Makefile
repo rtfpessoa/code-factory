@@ -1,4 +1,4 @@
-.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure help
+.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions help
 
 all: check lint ## Run all checks (frontmatter, agents, refs, structure, plugins, lint)
 
@@ -166,7 +166,33 @@ check-structure: ## Validate SKILL.md files have required structure (Announce, S
 	done
 	@echo "Done."
 
-check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
+check-versions: ## Warn if plugin content changed since last commit without a version bump
+	@echo "Checking plugin version bumps..."
+	@for source in $$(python3 -c "import json; data=json.load(open('.claude-plugin/marketplace.json')); print('\n'.join(p['source'] for p in data['plugins']))"); do \
+		plugin=$$(basename "$$source"); \
+		manifest="$$source/.claude-plugin/plugin.json"; \
+		if [ ! -f "$$manifest" ]; then continue; fi; \
+		content_changed=$$(git diff HEAD -- "$$source/skills/" "$$source/agents/" 2>/dev/null | head -1); \
+		if [ -z "$$content_changed" ]; then \
+			content_changed=$$(git diff --cached HEAD -- "$$source/skills/" "$$source/agents/" 2>/dev/null | head -1); \
+		fi; \
+		if [ -n "$$content_changed" ]; then \
+			version_changed=$$(git diff HEAD -- "$$manifest" 2>/dev/null | head -1); \
+			if [ -z "$$version_changed" ]; then \
+				version_changed=$$(git diff --cached HEAD -- "$$manifest" 2>/dev/null | head -1); \
+			fi; \
+			if [ -z "$$version_changed" ]; then \
+				echo "  WARN  $$plugin: skills/agents changed but $$manifest version not bumped"; \
+			else \
+				echo "  OK  $$plugin"; \
+			fi; \
+		else \
+			echo "  OK  $$plugin (no content changes)"; \
+		fi; \
+	done
+	@echo "Done."
+
+check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
 	@echo "Checking plugin references..."
 	@ok=true; \
 	for source in $$(python3 -c "import json; data=json.load(open('.claude-plugin/marketplace.json')); print('\n'.join(p['source'] for p in data['plugins']))"); do \

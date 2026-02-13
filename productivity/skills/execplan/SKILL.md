@@ -252,6 +252,16 @@ Proceed directly to **Execute Mode**.
 
 Report that no changes were made and the plan is available at `<plan_path>`.
 
+**If the user provided custom feedback (selected "Other" or gave a free-text response instead of one of the four options above):**
+
+The user has additional feedback that was not covered during the section-by-section walkthrough. Handle it as follows:
+
+1. Collect the user's feedback as additional revision items.
+2. Dispatch the revision subagent (same as the "Update and execute" flow above) to apply the changes to the plan.
+3. After the revision agent returns, **re-present the "Review complete" summary** with the same four options. Include the user's latest feedback in the bullet list of changes.
+
+This creates a loop: the user can keep giving feedback until they select one of the four predefined options. Do NOT proceed to execution on custom feedback — always re-ask.
+
 ### Execute Mode
 
 #### Step 1: Set Up Isolated Workspace
