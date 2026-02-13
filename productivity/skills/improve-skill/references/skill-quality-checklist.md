@@ -1,0 +1,67 @@
+# Skill Quality Checklist
+
+Reference for evaluating and improving skills during `/improve-skill` sessions.
+
+## Quality Dimensions
+
+| Dimension | Weight | Criteria |
+|-----------|--------|----------|
+| Conciseness | 25% | One sentence per concept. Tables over paragraphs. No filler words. |
+| Scannability | 25% | Clear headings. Bullet points. Working examples. Quick-start workflow early. |
+| Completeness | 25% | All edge cases addressed. Error handling section present. Copy-paste ready code blocks. |
+| Consistency | 15% | Announce line present. Numbered Steps. Error Handling section. Follows AGENTS.md conventions. |
+| Self-containment | 10% | Works without external context. No references to AGENTS.md content. Duplication preferred over external dependencies. |
+
+## Filler Words to Remove
+
+Remove these words — they add no information:
+
+> simply, just, easily, basically, actually, really, very, obviously, clearly, of course, in order to, it should be noted that, please note that
+
+## Structure Priorities
+
+1. Quick-start or most common workflow early
+2. Copy-paste ready code blocks with expected output
+3. Tables for reference, not paragraphs
+4. Specific commands, not vague instructions ("Run `make all`" not "Validate your changes")
+
+## Before/After Example
+
+### Before (vague, wordy)
+
+```markdown
+## Step 2: Process Changes
+
+You should basically just look at the changes that were made and think about
+whether they are correct. It's important to actually verify that everything
+is working properly before proceeding to the next step. Please note that you
+should also check for any potential issues.
+```
+
+### After (specific, concise)
+
+```markdown
+## Step 2: Verify Changes
+
+1. Run `git diff --stat` to list changed files.
+2. For each changed file, verify:
+   - No unintended modifications outside the target area
+   - New code follows existing patterns in the file
+   - No debug statements or temporary code remain
+3. Run `make all` to confirm all checks pass.
+```
+
+## Definition of Done
+
+A skill improvement is complete when:
+
+- [ ] All frontmatter fields present and valid (`name`, `description`, `argument-hint`, `user-invocable`)
+- [ ] Description starts with "Use when" and includes trigger phrases
+- [ ] Announce line present as first content line after heading
+- [ ] Steps are numbered with specific actions (commands, not vague instructions)
+- [ ] Error handling covers all identified failure modes
+- [ ] No filler words remain in updated content
+- [ ] Readable on first pass by someone unfamiliar with the skill
+- [ ] Cross-references to other skills validated (`make check-refs`)
+- [ ] Version bump applied to owning plugin's `plugin.json`
+- [ ] `make all` passes

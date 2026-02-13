@@ -2,9 +2,11 @@
 name: improve-skill
 description: >
   Use when the user wants to reflect on recent work and improve the skills, tools,
-  and documentation in this plugin marketplace.
+  and documentation in this plugin marketplace. Accepts an optional focus area
+  argument to narrow scope to a specific plugin, skill, or category.
   Triggers: "improve skills", "improve tools", "make skills better",
-  "reflect and improve", "improve the repo".
+  "reflect and improve", "improve the repo", "audit skills", "polish skills",
+  "skill quality".
 argument-hint: "[optional focus area: skills, docs, tools, or specific plugin name]"
 user-invocable: true
 disable-model-invocation: true
@@ -36,51 +38,39 @@ Read `AGENTS.md` for current repo conventions.
 
 ## Step 2: Reflect on Recent Experience
 
-Think through what you just worked on in this session. Evaluate across four dimensions:
+Review the session's work by examining concrete artifacts:
 
-### What slowed you down?
-- Where did you hesitate or get confused by a skill?
-- What error messages from tools didn't help?
-- What information did you have to hunt for?
+1. Run `git log --oneline -20` and `git diff HEAD~5..HEAD --stat` to identify which files changed recently.
+2. For each changed skill, read it and evaluate against the four dimensions below.
+3. If `$ARGUMENTS` specifies a focus area, narrow to that area only.
+4. If there is no recent session context, ask the user what area to improve or offer a general audit of all skills.
 
-### What wasted tokens?
-- Verbose documentation you had to wade through
-- Skill content that could be more concise
-- Redundant information across skills
+### Evaluation Dimensions
 
-### What was missing?
-- Manual steps that should be automated (Makefile targets, validation)
-- A skill that should exist but doesn't
-- Gaps in error handling or edge cases
+| Dimension | Key Question | How to Check |
+|-----------|-------------|--------------|
+| **Friction** | Where did you hesitate or get confused? | Re-read skill instructions as if encountering them for the first time |
+| **Token waste** | What content is verbose or redundant? | Look for paragraphs that could be tables, repeated information across skills |
+| **Missing pieces** | What manual steps should be automated? | Check for error cases not covered, skills that should exist but don't |
+| **Confusion** | What instructions are ambiguous? | Look for vague verbs ("handle", "process", "deal with") without specific actions |
 
-### What was confusing?
-- Skill instructions that were ambiguous
-- Inconsistent patterns across skills
-- Surprising behavior from tools or unclear defaults
-
-If `$ARGUMENTS` specifies a focus area (e.g., a plugin name or "docs"), narrow reflection to that area.
-
-If there is no recent session context, ask the user what area they'd like to improve or offer a general audit of all skills.
+For each finding, note: the file, the dimension, and a one-sentence description.
 
 ## Step 3: Make Improvements
 
 Apply changes directly. You have full authority to improve any file in this repo. Do not ask permission for improvements within existing files.
 
+Prioritize improvements in this order:
+
+1. **Critical**: broken cross-references, missing error handling, incorrect instructions
+2. **Functional**: vague instructions, missing edge cases, inconsistent patterns
+3. **Polish**: filler word removal, table formatting, redundant content
+
 ### Improving Skills
 
 **Location:** `{plugin}/skills/{name}/SKILL.md`
 
-Principles:
-- **Concise:** one sentence per concept, tables over paragraphs, no filler words ("simply", "just", "easily")
-- **Scannable:** clear headings, bullet points, working examples
-- **Complete:** all edge cases addressed, error handling section present
-- **Consistent:** follow established patterns — Announce line, numbered Steps, Error Handling section
-- **Self-contained:** each skill must work without external context
-
-Structure priorities:
-1. Quick-start or most common workflow early
-2. Copy-paste ready code blocks
-3. Tables for reference, not paragraphs
+Read `references/skill-quality-checklist.md` for quality criteria, filler words list, before/after examples, and Definition of Done checklist. Apply each criterion.
 
 **Version bump required:** Any change to a skill or agent file requires a version bump in the owning plugin's `.claude-plugin/plugin.json` (patch for fixes, minor for new features).
 
@@ -88,7 +78,7 @@ Structure priorities:
 
 **Files:** `AGENTS.md`, `README.md`, skill `SKILL.md` files
 
-- Keep instructions actionable and specific
+- Keep instructions actionable and specific (commands, not descriptions)
 - Remove ambiguity that caused confusion during your session
 - Add missing conventions you discovered
 
@@ -100,26 +90,11 @@ Structure priorities:
 - Sensible defaults, fail fast
 - Add missing validation targets if gaps are found
 
-### Creating New Skills
+### Creating New Skills or Plugins
 
-If a skill should exist but doesn't:
-
-1. Determine which plugin it belongs to (productivity, git, code)
-2. Create `{plugin}/skills/{name}/SKILL.md`
-3. Use YAML frontmatter: `name`, `description` (starts with "Use when..."), `argument-hint`, `user-invocable: true`
-4. Follow the Announce → Steps → Error Handling structure
-5. Update the plugin's `.claude-plugin/plugin.json` version (minor bump)
+Read `references/new-skill-template.md` for creation checklists and YAML templates.
 
 **For significant new features**, suggest running `/execplan` first instead of implementing inline.
-
-### Creating New Plugins
-
-If a new plugin is warranted:
-
-1. Create `{name}/.claude-plugin/plugin.json` with name, version, description, author
-2. Create skill directories under `{name}/skills/`
-3. Add the plugin to `.claude-plugin/marketplace.json`
-4. Confirm with the user before proceeding (per AGENTS.md boundaries)
 
 ## Step 4: Validate
 
@@ -129,22 +104,37 @@ Run after all changes:
 make all
 ```
 
-All checks must pass. Fix any failures before proceeding.
+### Iteration Loop
 
-Also verify:
-- Updated skills read clearly to someone encountering them for the first time
-- No broken cross-references between skills
-- Any new files follow the naming conventions in AGENTS.md
+If `make all` fails:
+
+1. Read the error output to identify which check failed.
+2. Fix the specific issue (do not make unrelated changes).
+3. Re-run `make all`.
+4. Repeat until all checks pass. Maximum 3 iterations — if still failing after 3 attempts, report the remaining failures to the user.
+
+### Manual Quality Checks
+
+After `make all` passes, verify these criteria (not covered by automated checks):
+
+| Check | How to Verify |
+|-------|---------------|
+| First-read clarity | Re-read each updated skill as if seeing it for the first time — is every step unambiguous? |
+| No filler words | Search updated files for: simply, just, easily, basically, actually, really, very |
+| Naming conventions | New files follow `{plugin}/skills/{name}/SKILL.md` pattern |
+| Description convention | All descriptions start with "Use when" |
 
 ## Step 5: Report
 
-Present a summary of all changes:
+Present a summary of all changes. For non-trivial improvements, include a brief before/after snippet.
 
 ```
 ## Improvements Made
 
 ### Skills Updated
 - **{plugin}:{skill-name}**: {what changed and why}
+  - Before: {brief excerpt}
+  - After: {brief excerpt}
 
 ### Documentation Updated
 - **{file}**: {what changed and why}
@@ -155,11 +145,8 @@ Present a summary of all changes:
 ### New Skills Created
 - **{plugin}:{skill-name}**: {what it does}
 
-### New Plugins Created
-- **{plugin}**: {what it contains}
-
 ### Version Bumps
-- **{plugin}**: {old} → {new}
+- **{plugin}**: {old} -> {new}
 
 ### Suggested Follow-ups
 - {anything that needs deeper work via /execplan}
@@ -167,9 +154,46 @@ Present a summary of all changes:
 
 Omit any section with no entries.
 
+## Example
+
+### Invocation
+
+```
+/improve-skill git
+```
+
+### What Happens
+
+1. Gathers all skills in the `git/` plugin and reads current versions.
+2. Reviews `git log` for recent changes to git skills.
+3. Finds: `/commit` Step 2 says "Analyze changes" without specifying *what* to analyze.
+4. Reads `references/skill-quality-checklist.md` — flags the vague instruction under "Friction" dimension.
+5. Rewrites Step 2 with an explicit list of analysis targets (title, documentation links, motivation, summary).
+6. Runs `make all` — passes.
+7. Reports the improvement with before/after.
+
+### Sample Report
+
+```
+## Improvements Made
+
+### Skills Updated
+- **git:commit**: Step 2 now lists specific analysis targets instead of vague "Analyze changes"
+  - Before: "Analyze the staged changes"
+  - After: "For each staged file, identify: title line, documentation links, motivation, summary"
+
+### Version Bumps
+- **git**: 0.3.0 -> 0.3.1
+```
+
 ## Error Handling
 
-- **Not in code-factory repo**: inform the user and stop.
-- **No recent session context**: ask the user what area to improve, or offer a general audit of all skills.
-- **`make all` failure**: fix the issues and re-run validation. Do not report until all checks pass.
-- **Significant interface change**: if a change would modify a skill's name, arguments, or behavior substantially, describe the proposed change and ask the user before applying it.
+| Error | Action |
+|-------|--------|
+| Not in code-factory repo | Inform the user this skill is designed for the code-factory plugin marketplace. Stop. |
+| No recent session context and no focus area | Ask the user what area to improve, or offer a general audit of all skills. |
+| `make all` failure after 3 fix attempts | Report remaining failures to the user with the specific error output. Do not loop indefinitely. |
+| Multiple plugins need version bumps | Bump each plugin independently. Run `make check-versions` to verify each bump. |
+| Broken cross-reference to non-existent skill | If the referenced skill should exist, create it (see `references/new-skill-template.md`). If not, fix the reference. |
+| Significant interface change | Describe the proposed change (skill name, arguments, behavior) and ask the user before applying. |
+| Reference file missing | Proceed using inline principles: concise, scannable, complete, consistent, self-contained. |
